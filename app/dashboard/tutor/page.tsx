@@ -22,7 +22,16 @@ interface Booking {
 
 export default function TutorDashboard() {
   const router = useRouter()
-  const searchParams = useSearchParams()
+  const [urlParams, setUrlParams] = useState<{ onboarding?: string; pending?: string }>({})
+
+useEffect(() => {
+  // Читаем параметры только на клиенте, после монтирования
+  const params = new URLSearchParams(window.location.search)
+  setUrlParams({
+    onboarding: params.get('onboarding') || undefined,
+    pending: params.get('pending') || undefined
+  })
+}, [])
   const [user, setUser] = useState<User | null>(null)
   const [bookings, setBookings] = useState<Booking[]>([])
   const [showOnboarding, setShowOnboarding] = useState(false)
@@ -57,7 +66,8 @@ export default function TutorDashboard() {
 
   if (!user) return <div className="p-8 text-center">Загрузка...</div>
 
-  if (showOnboarding || searchParams.get('onboarding') === '1') {
+if (showOnboarding || urlParams.onboarding === '1') { ... }
+if (urlParams.pending === '1' || !user.tutorData?.isApproved) { ... }
     return (
       <main className="min-h-screen bg-gray-100 max-w-md mx-auto shadow-2xl p-4">
         <div className="bg-white rounded-2xl p-6 text-center shadow-lg border border-gray-200 mt-10">
