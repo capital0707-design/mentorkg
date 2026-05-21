@@ -4,8 +4,18 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { auth, User } from '@/lib/auth'
 
+// ✅ ИСПРАВЛЕНИЕ: Полный интерфейс Booking со всеми полями
 interface Booking {
-  id: number; studentName: string; studentPhone: string; subject: string; date: string; time: string; status: string; jitsiRoom: string;
+  id: number
+  studentName: string
+  studentPhone: string
+  tutorName: string
+  subject: string
+  level: string
+  date: string
+  time: string
+  status: string
+  jitsiRoom: string
 }
 
 export default function TutorDashboard() {
@@ -27,12 +37,10 @@ export default function TutorDashboard() {
     }
     setUser(currentUser)
     
-    // Если репетитор ещё не заполнил профиль
     if (!currentUser.tutorData?.isApproved) {
       setShowOnboarding(true)
     }
     
-    // Загружаем заявки к этому репетитору
     const allBookings = JSON.parse(localStorage.getItem('mk_bookings') || '[]')
     const myBookings = allBookings.filter((b: Booking) => b.tutorName === currentUser.name)
     setBookings(myBookings)
@@ -51,7 +59,7 @@ export default function TutorDashboard() {
     return (
       <main className="min-h-screen bg-gray-100 max-w-md mx-auto shadow-2xl p-4">
         <div className="bg-white rounded-2xl p-6 text-center shadow-lg border border-gray-200 mt-10">
-          <div className="text-4xl mb-4">👨🏫</div>
+          <div className="text-4xl mb-4">👨</div>
           <h2 className="text-xl font-bold text-gray-900 mb-2">Заполните профиль репетитора</h2>
           <p className="text-gray-500 text-sm mb-6">Чтобы ученики могли вас найти, укажите предмет, опыт и условия занятий</p>
           <Link href="/register?role=tutor" className="inline-block bg-indigo-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-indigo-700 transition">
@@ -87,7 +95,7 @@ export default function TutorDashboard() {
   return (
     <main className="min-h-screen bg-gray-100 max-w-md mx-auto shadow-2xl pb-24">
       <header className="sticky top-0 z-40 bg-white border-b border-gray-200 px-4 py-3 flex justify-between items-center">
-        <h1 className="font-semibold">👨🏫 Кабинет репетитора</h1>
+        <h1 className="font-semibold">👨 Кабинет репетитора</h1>
         <button onClick={() => { auth.logout(); router.push('/') }} className="text-sm text-red-500">Выйти</button>
       </header>
 
