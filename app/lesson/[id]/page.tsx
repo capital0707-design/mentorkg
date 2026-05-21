@@ -14,34 +14,39 @@ export default function LessonRoom() {
   const router = useRouter()
   const jitsiContainerRef = useRef<HTMLDivElement>(null)
   const [error, setError] = useState('')
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     // Загружаем скрипт Jitsi динамически
-    const loadJitsiScript = () => {
-      if (window.JitsiMeetExternalAPI) return true
+    const loadJitsiScript = (): Promise<void> => {
+      if (window.JitsiMeetExternalAPI) {
+        return Promise.resolve()
+      }
+      
       return new Promise((resolve, reject) => {
         const script = document.createElement('script')
         script.src = 'https://meet.jit.si/external_api.js'
         script.async = true
-        script.onload = () => resolve(true)
-        script.onerror = () => reject('Ошибка загрузки Jitsi')
+        script.onload = () => resolve()
+        script.onerror = () => reject(new Error('Ошибка загрузки Jitsi'))
         document.body.appendChild(script)
       })
     }
 
     loadJitsiScript()
       .then(() => {
-        if (!jitsiContainerRef.current) return
+        if (!jitsiContainerRef.current) {
+          setIsLoading(false)
+          return
+        }
 
-        // Генерируем название комнаты (в реальности оно берется из БД брони)
-        // Сейчас используем ID из URL как название комнаты
         const roomName = `MentorKG-Lesson-${id}`
-        
         const domain = 'meet.jit.si'
+        
         const options = {
           roomName: roomName,
           width: '100%',
-          height: '100%', // Занимает весь экран
+          height: '100%',
           parentNode: jitsiContainerRef.current,
           lang: 'ru',
           interfaceConfigOverwrite: {
@@ -63,30 +68,42 @@ export default function LessonRoom() {
 
         const api = new window.JitsiMeetExternalAPI(domain, options)
         
-        // Обработчик выхода (крестик)
         api.addEventListeners({
           readyToClose: () => {
-            router.push('/') // Возврат на главную после звонка
+            router.push('/')
           },
           videoConferenceLeft: () => {
-             router.push('/')
+            router.push('/')
           }
         })
-
+        
+        setIsLoading(false)
       })
       .catch((err) => {
         console.error(err)
         setError('Не удалось загрузить видео-модуль. Проверьте интернет.')
+        setIsLoading(false)
       })
 
-  }, [])
+  }, [id, router])
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+          <p>Загрузка видеосвязи...</p>
+        </div>
+      </div>
+    )
+  }
 
   if (error) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white p-4">
         <div className="text-center">
-          <p className="text-xl mb-4">❌ {error}</p>
-          <Link href="/" className="bg-indigo-600 px-4 py-2 rounded-lg">На главную</Link>
+          <p className="text-xl mb-4"> {error}</p>
+          <Link href="/" className="bg-indigo-600 px-4 py-2 rounded-lg inline-block">На главную</Link>
         </div>
       </div>
     )
