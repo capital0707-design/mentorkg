@@ -4,6 +4,8 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { auth, User } from '@/lib/auth'
 
+export const dynamic = 'force-dynamic'
+
 // ✅ ИСПРАВЛЕНИЕ: Полный интерфейс Booking со всеми полями
 interface Booking {
   id: number

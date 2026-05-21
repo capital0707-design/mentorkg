@@ -4,6 +4,8 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { auth, User } from '@/lib/auth'
 
+export const dynamic = 'force-dynamic'
+
 // ✅ ИСПРАВЛЕНИЕ: Добавили studentName и другие поля, которые используются ниже
 interface Booking {
   id: number
