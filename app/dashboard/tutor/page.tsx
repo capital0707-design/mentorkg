@@ -1,12 +1,9 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { auth, User } from '@/lib/auth'
 
-export const dynamic = 'force-dynamic'
-
-// ✅ ИСПРАВЛЕНИЕ: Полный интерфейс Booking со всеми полями
 interface Booking {
   id: number
   studentName: string
@@ -22,21 +19,19 @@ interface Booking {
 
 export default function TutorDashboard() {
   const router = useRouter()
-  const [urlParams, setUrlParams] = useState<{ onboarding?: string; pending?: string }>({})
-
-useEffect(() => {
-  // Читаем параметры только на клиенте, после монтирования
-  const params = new URLSearchParams(window.location.search)
-  setUrlParams({
-    onboarding: params.get('onboarding') || undefined,
-    pending: params.get('pending') || undefined
-  })
-}, [])
   const [user, setUser] = useState<User | null>(null)
   const [bookings, setBookings] = useState<Booking[]>([])
   const [showOnboarding, setShowOnboarding] = useState(false)
+  const [urlParams, setUrlParams] = useState<{ onboarding?: string; pending?: string }>({})
 
   useEffect(() => {
+    // Читаем параметры URL только на клиенте
+    const params = new URLSearchParams(window.location.search)
+    setUrlParams({
+      onboarding: params.get('onboarding') || undefined,
+      pending: params.get('pending') || undefined
+    })
+
     const currentUser = auth.getCurrentUser()
     if (!currentUser) {
       router.push('/auth')
@@ -66,12 +61,12 @@ useEffect(() => {
 
   if (!user) return <div className="p-8 text-center">Загрузка...</div>
 
-if (showOnboarding || urlParams.onboarding === '1') { ... }
-if (urlParams.pending === '1' || !user.tutorData?.isApproved) { ... }
+  // Экран онбординга (если репетитор ещё не заполнил профиль)
+  if (showOnboarding || urlParams.onboarding === '1') {
     return (
       <main className="min-h-screen bg-gray-100 max-w-md mx-auto shadow-2xl p-4">
         <div className="bg-white rounded-2xl p-6 text-center shadow-lg border border-gray-200 mt-10">
-          <div className="text-4xl mb-4">👨</div>
+          <div className="text-4xl mb-4">👨🏫</div>
           <h2 className="text-xl font-bold text-gray-900 mb-2">Заполните профиль репетитора</h2>
           <p className="text-gray-500 text-sm mb-6">Чтобы ученики могли вас найти, укажите предмет, опыт и условия занятий</p>
           <Link href="/register?role=tutor" className="inline-block bg-indigo-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-indigo-700 transition">
@@ -83,7 +78,8 @@ if (urlParams.pending === '1' || !user.tutorData?.isApproved) { ... }
     )
   }
 
-  if (searchParams.get('pending') === '1' || !user.tutorData?.isApproved) {
+  // Экран "На проверке" (профиль отправлен, но ещё не одобрен)
+  if (urlParams.pending === '1' || !user.tutorData?.isApproved) {
     return (
       <main className="min-h-screen bg-gray-100 max-w-md mx-auto shadow-2xl p-4">
         <div className="bg-white rounded-2xl p-6 text-center shadow-lg border border-gray-200 mt-10">
@@ -107,7 +103,7 @@ if (urlParams.pending === '1' || !user.tutorData?.isApproved) { ... }
   return (
     <main className="min-h-screen bg-gray-100 max-w-md mx-auto shadow-2xl pb-24">
       <header className="sticky top-0 z-40 bg-white border-b border-gray-200 px-4 py-3 flex justify-between items-center">
-        <h1 className="font-semibold">👨 Кабинет репетитора</h1>
+        <h1 className="font-semibold">👨🏫 Кабинет репетитора</h1>
         <button onClick={() => { auth.logout(); router.push('/') }} className="text-sm text-red-500">Выйти</button>
       </header>
 
