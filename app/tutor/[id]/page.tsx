@@ -4,23 +4,28 @@ import { useParams, useRouter } from 'next/navigation'
 import { tutors } from '@/lib/mock-data'
 import Link from 'next/link'
 
-type BookingStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'no_show'
-interface Booking {
-  id: number
-  studentName: string
-  studentPhone: string
-  tutorId: number
-  tutorName: string
-  subject: string
-  level: string
-  date: string
-  time: string
-  status: BookingStatus
-  jitsiRoom: string
-  createdAt: string
-}
-
 const timeSlots = ['09:00', '10:00', '11:00', '14:00', '15:00', '16:00', '18:00', '19:00']
+
+// 📞 Функция маски телефона: +996 XXX XXX XXX
+const formatPhone = (value: string) => {
+  // Оставляем только цифры
+  const digits = value.replace(/\D/g, '')
+  // Убираем 996, если пользователь начал вводить с него
+  const clean = digits.startsWith('996') ? digits.slice(3) : digits
+  // Берём только 9 цифр (без кода страны)
+  const limited = clean.slice(0, 9)
+  
+  const p1 = limited.slice(0, 3)
+  const p2 = limited.slice(3, 6)
+  const p3 = limited.slice(6, 9)
+  
+  let result = '+996'
+  if (p1) result += ` ${p1}`
+  if (p2) result += ` ${p2}`
+  if (p3) result += ` ${p3}`
+  
+  return result
+}
 
 export default function TutorProfile() {
   const router = useRouter()
@@ -33,16 +38,24 @@ export default function TutorProfile() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isBooked, setIsBooked] = useState(false)
 
+  // Состояния для формы ученика
+  const [studentName, setStudentName] = useState('')
+  const [studentPhone, setStudentPhone] = useState('')
+  const [lessonLinkForStudent, setLessonLinkForStudent] = useState<string | null>(null)
+
   if (!tutor) return <div className="p-8 text-center">Репетитор не найден</div>
 
   const handleBook = () => {
-    if (!selectedSlot) return
+    if (!selectedSlot || !studentName || !studentPhone) return
 
-    const jitsiRoom = `MentorKG-${tutor.name.replace(/\s/g, '')}-${Date.now()}`
-    const newBooking: Booking = {
+    // Генерируем уникальную комнату
+    const jitsiRoom = `MentorKG-${tutor.id}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    const lessonLink = `https://meet.jit.si/${jitsiRoom}`
+
+    const newBooking = {
       id: Date.now(),
-      studentName: 'Гость (MVP)',
-      studentPhone: '+996 700 000 000',
+      studentName: studentName,
+      studentPhone: studentPhone, // Тут уже отформатированный номер
       tutorId: tutor.id,
       tutorName: tutor.name,
       subject: tutor.subject,
@@ -50,26 +63,29 @@ export default function TutorProfile() {
       date: new Date().toISOString().split('T')[0],
       time: selectedSlot,
       status: 'pending',
-      jitsiRoom,
+      jitsiRoom: jitsiRoom,
+      lessonLink: lessonLink,
       createdAt: new Date().toISOString()
     }
 
     const existing = JSON.parse(localStorage.getItem('mk_bookings') || '[]')
     localStorage.setItem('mk_bookings', JSON.stringify([...existing, newBooking]))
 
+    setLessonLinkForStudent(lessonLink)
     setIsBooked(true)
-    setTimeout(() => {
-      setIsBooked(false)
-      setIsModalOpen(false)
-      setSelectedSlot(null)
-      router.push('/')
-    }, 2000)
+  }
+
+  const closeModal = () => {
+    setIsModalOpen(false)
+    setIsBooked(false)
+    setSelectedSlot(null)
+    setStudentName('')
+    setStudentPhone('')
+    setLessonLinkForStudent(null)
   }
 
   return (
-    // ✅ Добавлен контейнер с рамкой как на главной
     <main className="min-h-screen bg-gray-100 max-w-md mx-auto shadow-2xl pb-24">
-      
       {/* Шапка */}
       <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-200 px-4 py-3 flex items-center gap-3">
         <Link href="/" className="p-2 -ml-2 rounded-full hover:bg-gray-100">←</Link>
@@ -87,7 +103,7 @@ export default function TutorProfile() {
         </div>
       </div>
 
-      {/* Табы — ✅ "Запись" заменено на "Выбрать время" */}
+      {/* Табы */}
       <div className="bg-white border-b border-gray-200 sticky top-[60px] z-30">
         <div className="flex">
           {(['about', 'reviews', 'booking'] as const).map(tab => (
@@ -106,8 +122,6 @@ export default function TutorProfile() {
           <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-200 space-y-3">
             <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide">О репетиторе</h3>
             <p className="text-gray-800 leading-relaxed">{tutor.bio}</p>
-            <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mt-3">Образование</h3>
-            <p className="text-gray-800">{tutor.education}</p>
             <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mt-3">Предмет</h3>
             <p className="text-gray-800 font-medium">{tutor.subject} • {tutor.level}</p>
           </div>
@@ -121,8 +135,7 @@ export default function TutorProfile() {
                   <span className="font-semibold text-gray-900">{r.author}</span>
                   <span className="text-xs text-gray-400">{r.date}</span>
                 </div>
-                <div className="text-amber-500 text-sm mb-2">{'⭐'.repeat(r.rating)}</div>
-                <p className="text-gray-700 text-sm leading-relaxed">{r.text}</p>
+                <p className="text-gray-700 text-sm">{r.text}</p>
               </div>
             ))}
           </div>
@@ -141,58 +154,93 @@ export default function TutorProfile() {
                 </button>
               ))}
             </div>
-            <p className="text-xs text-gray-400 text-center">Нажмите на слот, чтобы выбрать</p>
           </div>
         )}
       </div>
 
-      {/* ✅ Нижние кнопки: компактные, не перекрывают контент */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-3 max-w-md mx-auto">
-        <div className="space-y-2">
-          {/* Кнопка Jitsi — вторичная, компактная */}
-          <Link href={`/lesson/${tutor.id}`} 
-            className="w-full bg-white text-green-600 border-2 border-green-200 py-2.5 rounded-xl font-medium text-sm hover:bg-green-50 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
-            📹 Тест видеозвонка
-          </Link>
-          
-          {/* Кнопка записи — основная, с чётким состоянием disabled */}
-          <button 
-            onClick={() => selectedSlot && setIsModalOpen(true)} 
-            disabled={!selectedSlot}
-            className={`w-full py-3 rounded-xl font-semibold text-sm transition-all shadow-sm ${
-              selectedSlot 
-                ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-200 active:scale-[0.98]' 
-                : 'bg-gray-200 text-gray-500 cursor-not-allowed border border-gray-300'
-            }`}>
-            {selectedSlot ? `Подтвердить на ${selectedSlot}` : 'Сначала выберите время'}
-          </button>
-        </div>
+      {/* Нижние кнопки (✅ КНОПКА ТЕСТА УДАЛЕНА) */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 max-w-md mx-auto">
+        <button 
+          onClick={() => { if(selectedSlot) setIsModalOpen(true) }} 
+          disabled={!selectedSlot}
+          className={`w-full py-3 rounded-xl font-semibold text-sm transition-all ${
+            selectedSlot ? 'bg-indigo-600 text-white shadow-indigo-200' : 'bg-gray-200 text-gray-500'
+          }`}>
+          {selectedSlot ? `2. Подтвердить на ${selectedSlot}` : 'Сначала выберите время'}
+        </button>
       </div>
 
-      {/* Модальное окно подтверждения */}
+      {/* Модальное окно (✅ МАСКА ТЕЛЕФОНА ДОБАВЛЕНА) */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-md rounded-t-3xl p-5">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold text-gray-900">Подтверждение записи</h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
-            </div>
+          <div className="bg-white w-full max-w-md rounded-t-3xl p-5 animate-slide-up">
             
-            <div className="bg-gray-50 rounded-xl p-4 space-y-2 mb-4 text-sm">
-              <p>👤 <strong>{tutor.name}</strong></p>
-              <p>📚 {tutor.subject} • {tutor.level}</p>
-              <p>📅 Сегодня, <strong className="text-indigo-600">{selectedSlot}</strong></p>
-              <p>💰 {tutor.price} сом</p>
-            </div>
+            {isBooked && lessonLinkForStudent ? (
+              <div className="text-center py-2">
+                <div className="text-5xl mb-3">✅</div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Заявка подтверждена!</h3>
+                <p className="text-sm text-gray-500 mb-4">Ссылка на видеозвонок:</p>
+                
+                <div className="bg-indigo-50 p-3 rounded-xl border border-indigo-100 mb-4 break-all">
+                  <p className="text-xs text-indigo-600 font-mono">{lessonLinkForStudent}</p>
+                </div>
 
-            <button 
-              onClick={handleBook} 
-              disabled={isBooked}
-              className={`w-full py-3.5 rounded-xl font-semibold transition-all ${
-                isBooked ? 'bg-green-500 text-white' : 'bg-indigo-600 text-white hover:bg-indigo-700 active:scale-[0.98]'
-              }`}>
-              {isBooked ? '✅ Заявка отправлена!' : 'Подтвердить запись'}
-            </button>
+                <button 
+                  onClick={() => navigator.clipboard.writeText(lessonLinkForStudent || '')}
+                  className="w-full bg-indigo-600 text-white py-3 rounded-xl font-semibold hover:bg-indigo-700 transition mb-2"
+                >
+                  📋 Скопировать ссылку
+                </button>
+                
+                <button onClick={closeModal} className="text-sm text-gray-500 hover:text-gray-700 mt-2">
+                  Закрыть
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-bold text-gray-900">Запись на урок</h3>
+                  <button onClick={closeModal} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+                </div>
+                
+                <div className="space-y-4 mb-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Ваше имя</label>
+                    <input 
+                      type="text" 
+                      placeholder="Иван" 
+                      value={studentName}
+                      onChange={e => setStudentName(e.target.value)}
+                      className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Телефон</label>
+                    <input 
+                      type="tel" 
+                      placeholder="+996 ___ ___ ___"
+                      value={studentPhone}
+                      // ✅ Привязываем маску
+                      onChange={e => setStudentPhone(formatPhone(e.target.value))}
+                      // ✅ Открывает цифровую клавиатуру на телефоне
+                      inputMode="numeric"
+                      className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                </div>
+
+                <button 
+                  onClick={handleBook} 
+                  disabled={!studentName || !studentPhone}
+                  className={`w-full py-3.5 rounded-xl font-semibold transition-all ${
+                    (studentName && studentPhone)
+                      ? 'bg-indigo-600 text-white hover:bg-indigo-700' 
+                      : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                  }`}>
+                  Подтвердить запись
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}
