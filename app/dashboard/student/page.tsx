@@ -4,8 +4,17 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { auth, User } from '@/lib/auth'
 
+// ✅ ИСПРАВЛЕНИЕ: Добавили studentName и другие поля, которые используются ниже
 interface Booking {
-  id: number; tutorName: string; subject: string; date: string; time: string; status: string;
+  id: number
+  studentName: string
+  studentPhone: string
+  tutorName: string
+  subject: string
+  date: string
+  time: string
+  status: string
+  jitsiRoom: string
 }
 
 export default function StudentDashboard() {
@@ -21,11 +30,10 @@ export default function StudentDashboard() {
     }
     setUser(currentUser)
     
-    // Загружаем заявки ученика (в реальности — запрос к БД)
+    // Загружаем заявки
     const allBookings = JSON.parse(localStorage.getItem('mk_bookings') || '[]')
-    const myBookings = allBookings.filter((b: Booking) => 
-      b.studentName === currentUser.name || b.studentPhone?.includes(currentUser.phone.slice(-4))
-    )
+    // Фильтруем: показываем те, где имя совпадает с именем текущего юзера
+    const myBookings = allBookings.filter((b: Booking) => b.studentName === currentUser.name)
     setBookings(myBookings)
   }, [router])
 
@@ -34,7 +42,7 @@ export default function StudentDashboard() {
   return (
     <main className="min-h-screen bg-gray-100 max-w-md mx-auto shadow-2xl pb-24">
       <header className="sticky top-0 z-40 bg-white border-b border-gray-200 px-4 py-3 flex justify-between items-center">
-        <h1 className="font-semibold">🎓 Мой кабинет</h1>
+        <h1 className="font-semibold"> Мой кабинет</h1>
         <button onClick={() => { auth.logout(); router.push('/') }} className="text-sm text-red-500">Выйти</button>
       </header>
 
@@ -43,7 +51,7 @@ export default function StudentDashboard() {
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-200">
           <p className="text-sm text-gray-500">Добро пожаловать,</p>
           <h2 className="text-xl font-bold text-gray-900">{user.name}</h2>
-          <p className="text-sm text-gray-500 mt-1">📱 {user.phone.replace(/(\d{3})(\d{3})(\d{2})(\d{2})/, '+996 $1 $2 $3 $4')}</p>
+          <p className="text-sm text-gray-500 mt-1"> {user.phone.replace(/(\d{3})(\d{3})(\d{2})(\d{2})/, '+996 $1 $2 $3 $4')}</p>
         </div>
 
         {/* Быстрые действия */}
@@ -101,7 +109,7 @@ export default function StudentDashboard() {
             <span className="text-xl">🔍</span><span className="text-[10px]">Поиск</span>
           </Link>
           <button className="flex flex-col items-center gap-0.5 py-1 px-3 text-indigo-600">
-            <span className="text-xl">🎓</span><span className="text-[10px] font-semibold">Кабинет</span>
+            <span className="text-xl"></span><span className="text-[10px] font-semibold">Кабинет</span>
           </button>
           <button className="flex flex-col items-center gap-0.5 py-1 px-3 text-gray-400 hover:text-gray-600">
             <span className="text-xl">💬</span><span className="text-[10px]">Чаты</span>
