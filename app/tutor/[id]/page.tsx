@@ -6,13 +6,9 @@ import Link from 'next/link'
 
 const timeSlots = ['09:00', '10:00', '11:00', '14:00', '15:00', '16:00', '18:00', '19:00']
 
-// 📞 Функция маски телефона: +996 XXX XXX XXX
 const formatPhone = (value: string) => {
-  // Оставляем только цифры
   const digits = value.replace(/\D/g, '')
-  // Убираем 996, если пользователь начал вводить с него
   const clean = digits.startsWith('996') ? digits.slice(3) : digits
-  // Берём только 9 цифр (без кода страны)
   const limited = clean.slice(0, 9)
   
   const p1 = limited.slice(0, 3)
@@ -27,6 +23,13 @@ const formatPhone = (value: string) => {
   return result
 }
 
+// ✅ Проверяем, что введено ровно 9 цифр (после кода страны)
+const isPhoneValid = (phone: string) => {
+  const digits = phone.replace(/\D/g, '')
+  const clean = digits.startsWith('996') ? digits.slice(3) : digits
+  return clean.length === 9
+}
+
 export default function TutorProfile() {
   const router = useRouter()
   const { id } = useParams()
@@ -38,7 +41,6 @@ export default function TutorProfile() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isBooked, setIsBooked] = useState(false)
 
-  // Состояния для формы ученика
   const [studentName, setStudentName] = useState('')
   const [studentPhone, setStudentPhone] = useState('')
   const [lessonLinkForStudent, setLessonLinkForStudent] = useState<string | null>(null)
@@ -46,16 +48,15 @@ export default function TutorProfile() {
   if (!tutor) return <div className="p-8 text-center">Репетитор не найден</div>
 
   const handleBook = () => {
-    if (!selectedSlot || !studentName || !studentPhone) return
+    if (!selectedSlot || !studentName || !isPhoneValid(studentPhone)) return
 
-    // Генерируем уникальную комнату
     const jitsiRoom = `MentorKG-${tutor.id}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
     const lessonLink = `https://meet.jit.si/${jitsiRoom}`
 
     const newBooking = {
       id: Date.now(),
       studentName: studentName,
-      studentPhone: studentPhone, // Тут уже отформатированный номер
+      studentPhone: studentPhone,
       tutorId: tutor.id,
       tutorName: tutor.name,
       subject: tutor.subject,
@@ -86,13 +87,11 @@ export default function TutorProfile() {
 
   return (
     <main className="min-h-screen bg-gray-100 max-w-md mx-auto shadow-2xl pb-24">
-      {/* Шапка */}
       <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-200 px-4 py-3 flex items-center gap-3">
         <Link href="/" className="p-2 -ml-2 rounded-full hover:bg-gray-100">←</Link>
         <h1 className="font-semibold text-gray-900 truncate">{tutor.name}</h1>
       </header>
 
-      {/* Профиль */}
       <div className="bg-white px-4 py-6 text-center border-b border-gray-200">
         <img src={tutor.photo_url} alt={tutor.name} className="w-20 h-20 rounded-full mx-auto object-cover ring-4 ring-indigo-100 mb-3" />
         <h2 className="text-xl font-bold text-gray-900">{tutor.name}</h2>
@@ -103,7 +102,6 @@ export default function TutorProfile() {
         </div>
       </div>
 
-      {/* Табы */}
       <div className="bg-white border-b border-gray-200 sticky top-[60px] z-30">
         <div className="flex">
           {(['about', 'reviews', 'booking'] as const).map(tab => (
@@ -116,7 +114,6 @@ export default function TutorProfile() {
         </div>
       </div>
 
-      {/* Контент */}
       <div className="p-4 space-y-4">
         {activeTab === 'about' && (
           <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-200 space-y-3">
@@ -158,7 +155,6 @@ export default function TutorProfile() {
         )}
       </div>
 
-      {/* Нижние кнопки (✅ КНОПКА ТЕСТА УДАЛЕНА) */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 max-w-md mx-auto">
         <button 
           onClick={() => { if(selectedSlot) setIsModalOpen(true) }} 
@@ -170,7 +166,6 @@ export default function TutorProfile() {
         </button>
       </div>
 
-      {/* Модальное окно (✅ МАСКА ТЕЛЕФОНА ДОБАВЛЕНА) */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm">
           <div className="bg-white w-full max-w-md rounded-t-3xl p-5 animate-slide-up">
@@ -220,20 +215,19 @@ export default function TutorProfile() {
                       type="tel" 
                       placeholder="+996 ___ ___ ___"
                       value={studentPhone}
-                      // ✅ Привязываем маску
                       onChange={e => setStudentPhone(formatPhone(e.target.value))}
-                      // ✅ Открывает цифровую клавиатуру на телефоне
                       inputMode="numeric"
                       className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />
                   </div>
                 </div>
 
+                {/* ✅ ИСПРАВЛЕНИЕ: Проверяем количество цифр, а не длину строки */}
                 <button 
                   onClick={handleBook} 
-                  disabled={!studentName || !studentPhone}
+                  disabled={!studentName || !isPhoneValid(studentPhone)}
                   className={`w-full py-3.5 rounded-xl font-semibold transition-all ${
-                    (studentName && studentPhone)
+                    (studentName && isPhoneValid(studentPhone))
                       ? 'bg-indigo-600 text-white hover:bg-indigo-700' 
                       : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                   }`}>
