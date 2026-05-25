@@ -1,29 +1,27 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { tutors } from '@/lib/mock-data'
 import Link from 'next/link'
 
 const timeSlots = ['09:00', '10:00', '11:00', '14:00', '15:00', '16:00', '18:00', '19:00']
 
+// 📞 Маска: +996 XXX XXX XXX
 const formatPhone = (value: string) => {
   const digits = value.replace(/\D/g, '')
   const clean = digits.startsWith('996') ? digits.slice(3) : digits
   const limited = clean.slice(0, 9)
-  
   const p1 = limited.slice(0, 3)
   const p2 = limited.slice(3, 6)
   const p3 = limited.slice(6, 9)
-  
   let result = '+996'
   if (p1) result += ` ${p1}`
   if (p2) result += ` ${p2}`
   if (p3) result += ` ${p3}`
-  
   return result
 }
 
-// ✅ Проверяем, что введено ровно 9 цифр (после кода страны)
+// ✅ Валидация: ровно 9 цифр после кода страны
 const isPhoneValid = (phone: string) => {
   const digits = phone.replace(/\D/g, '')
   const clean = digits.startsWith('996') ? digits.slice(3) : digits
@@ -40,22 +38,38 @@ export default function TutorProfile() {
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isBooked, setIsBooked] = useState(false)
+  const [isCopying, setIsCopying] = useState(false)
 
   const [studentName, setStudentName] = useState('')
   const [studentPhone, setStudentPhone] = useState('')
-  const [lessonLinkForStudent, setLessonLinkForStudent] = useState<string | null>(null)
+  const [lessonLink, setLessonLink] = useState<string | null>(null)
+
+  // Автокопирование ссылки при успехе
+  useEffect(() => {
+    if (isBooked && lessonLink) {
+      const timer = setTimeout(() => {
+        navigator.clipboard.writeText(lessonLink)
+        setIsCopying(true)
+        setTimeout(() => setIsCopying(false), 2000)
+      }, 800)
+      return () => clearTimeout(timer)
+    }
+  }, [isBooked, lessonLink])
 
   if (!tutor) return <div className="p-8 text-center">Репетитор не найден</div>
 
   const handleBook = () => {
-    if (!selectedSlot || !studentName || !isPhoneValid(studentPhone)) return
+    if (!selectedSlot || !studentName.trim() || !isPhoneValid(studentPhone)) return
 
-    const jitsiRoom = `MentorKG-${tutor.id}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-    const lessonLink = `https://meet.jit.si/${jitsiRoom}`
+    // Генерация уникальной комнаты и ID гостя
+    const guestId = `guest_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
+    const jitsiRoom = `MentorKG-${tutor.id}-${Date.now()}`
+    const link = `https://meet.jit.si/${jitsiRoom}`
 
     const newBooking = {
       id: Date.now(),
-      studentName: studentName,
+      guestId,
+      studentName: studentName.trim(),
       studentPhone: studentPhone,
       tutorId: tutor.id,
       tutorName: tutor.name,
@@ -64,15 +78,15 @@ export default function TutorProfile() {
       date: new Date().toISOString().split('T')[0],
       time: selectedSlot,
       status: 'pending',
-      jitsiRoom: jitsiRoom,
-      lessonLink: lessonLink,
+      jitsiRoom,
+      lessonLink: link,
       createdAt: new Date().toISOString()
     }
 
     const existing = JSON.parse(localStorage.getItem('mk_bookings') || '[]')
     localStorage.setItem('mk_bookings', JSON.stringify([...existing, newBooking]))
 
-    setLessonLinkForStudent(lessonLink)
+    setLessonLink(link)
     setIsBooked(true)
   }
 
@@ -82,7 +96,8 @@ export default function TutorProfile() {
     setSelectedSlot(null)
     setStudentName('')
     setStudentPhone('')
-    setLessonLinkForStudent(null)
+    setLessonLink(null)
+    setIsCopying(false)
   }
 
   return (
@@ -170,24 +185,34 @@ export default function TutorProfile() {
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm">
           <div className="bg-white w-full max-w-md rounded-t-3xl p-5 animate-slide-up">
             
-            {isBooked && lessonLinkForStudent ? (
+            {isBooked && lessonLink ? (
               <div className="text-center py-2">
                 <div className="text-5xl mb-3">✅</div>
                 <h3 className="text-xl font-bold text-gray-900 mb-2">Заявка подтверждена!</h3>
-                <p className="text-sm text-gray-500 mb-4">Ссылка на видеозвонок:</p>
+                <p className="text-sm text-gray-500 mb-4">Ссылка на видеозвонок скопирована</p>
                 
                 <div className="bg-indigo-50 p-3 rounded-xl border border-indigo-100 mb-4 break-all">
-                  <p className="text-xs text-indigo-600 font-mono">{lessonLinkForStudent}</p>
+                  <p className="text-xs text-indigo-600 font-mono">{lessonLink}</p>
                 </div>
 
                 <button 
-                  onClick={() => navigator.clipboard.writeText(lessonLinkForStudent || '')}
-                  className="w-full bg-indigo-600 text-white py-3 rounded-xl font-semibold hover:bg-indigo-700 transition mb-2"
+                  onClick={() => {
+                    navigator.clipboard.writeText(lessonLink)
+                    setIsCopying(true)
+                    setTimeout(() => setIsCopying(false), 2000)
+                  }}
+                  className={`w-full py-3 rounded-xl font-semibold transition-all mb-2 ${
+                    isCopying ? 'bg-green-500 text-white' : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                  }`}
                 >
-                  📋 Скопировать ссылку
+                  {isCopying ? '📋 Скопировано!' : ' Скопировать ссылку'}
                 </button>
                 
-                <button onClick={closeModal} className="text-sm text-gray-500 hover:text-gray-700 mt-2">
+                <p className="text-xs text-gray-400 mb-3">
+                  Сохраните ссылку в заметках или отправьте себе в мессенджер
+                </p>
+
+                <button onClick={closeModal} className="text-sm text-gray-500 hover:text-gray-700 font-medium">
                   Закрыть
                 </button>
               </div>
@@ -222,12 +247,11 @@ export default function TutorProfile() {
                   </div>
                 </div>
 
-                {/* ✅ ИСПРАВЛЕНИЕ: Проверяем количество цифр, а не длину строки */}
                 <button 
                   onClick={handleBook} 
-                  disabled={!studentName || !isPhoneValid(studentPhone)}
+                  disabled={!studentName.trim() || !isPhoneValid(studentPhone)}
                   className={`w-full py-3.5 rounded-xl font-semibold transition-all ${
-                    (studentName && isPhoneValid(studentPhone))
+                    (studentName.trim() && isPhoneValid(studentPhone))
                       ? 'bg-indigo-600 text-white hover:bg-indigo-700' 
                       : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                   }`}>
